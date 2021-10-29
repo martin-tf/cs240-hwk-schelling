@@ -14,8 +14,8 @@ var randomize = document.getElementById("randomize");
 var runstop = document.getElementById("runstop");
 var grid = [];
 var h = 0;
-
 var run = false;
+var gen = 0;
 
 function randomNum(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -25,8 +25,9 @@ function createGrid() {
   for (var i = 0; i < dimension.value; i++) {
     grid[i] = [];
   }
+  randomizeTable();
+  createTable();
 }
-createGrid();
 
 function randomizeTable() {
   for (var i = 0; i < dimension.value; i++) {
@@ -42,9 +43,9 @@ function randomizeTable() {
   }
   console.log(grid);
 }
-randomizeTable();
 
 function createTable() {
+  empty = [];
   var myTable = document.getElementById("board");
   var table = document.createElement("table");
   var tableBody = document.createElement("tbody");
@@ -55,7 +56,7 @@ function createTable() {
     for (var j = 0; j < dimension.value; j++) {
       var td = document.createElement("td");
       if (grid[i][j] == "o") {
-        td.style.backgroundColor = "white";
+        empty.push(grid[i][j]);
       } else if (grid[i][j] == "y") {
         td.style.backgroundColor = popYcolor.value;
       } else {
@@ -67,97 +68,78 @@ function createTable() {
   myTable.appendChild(table);
   console.log(myTable);
 }
-createTable();
 
-function updateTable() {
-  for (var i = 0; i < dimension.value; i++) {
-    for (var j = 0; j < dimension.value; j++) {
-      if (grid[i][j] == "o") {
-        td.style.backgroundColor = "white";
-      } else if (grid[i][j] == "y") {
-        td.style.backgroundColor = popYcolor.value;
-      } else {
-        td.style.backgroundColor = popXcolor.value;
-      }
-    }
-  }
-}
-
-function runSim() {}
-
-async function round() {
-  var rand_x;
-  var rand_y;
-  for (var i = 0; i < dimension.value; i++) {
-    for (var j = 0; j < dimension.value; j++) {
-      if (grid[i][j] !== "o") {
-        var cur = grid[i][j];
-        var move = getSatisfaction(i, j);
-        if (move) {
-          grid[i][j].td.style.backgroundColor = "white";
-          do {
-            rand_x = randomNum(0, dimension.value - 1);
-            rand_y = randomNum(0, dimension.value - 1);
-          } while (grid[i][j] !== "o");
-        }
-        grid[i][j] = cur;
-        await new Promise((resolve) =>
-          setTimeout(() => {
-            resolve(); // do nothing after waiting 100 ms, just alert the calling thread
-          }, 100)
-        );
-      }
-    }
-  }
+function Neighbors(a, b) {
+  var n = [];
+  n.push(grid[a - 1][b]); //top center
+  n.push(grid[a](b + 1)); //right center
+  n.push(grid[a + 1][b]); //bottom center
+  n.push(grid[a][b - 1]); //left center
+  n.push(grid[a - 1][b + 1]); //Upper right
+  n.push(grid[a + 1][b + 1]); //bottom right
+  n.push(grid[a + 1][b - 1]); //bottom left
+  n.push(grid[a - 1][b - 1]); //upper left
+  return n.filter((x) => x);
 }
 
 function getSatisfaction(a, b) {
-  var cur = grid[a][b];
-  var type_x = 0;
-  var type_y = 0;
-
-  for (var i = a - 1; i <= a + 1; a++) {
-    for (var j = b - 1; j <= b + 1; j++) {
-      if (grid[getBoundedIndex(i)][getBoundedIndex(j)] === popYcolor.value) {
-        type_y++;
-      } else if (
-        grid[getBoundedIndex(i)][getBoundedIndex(j)] === popXcolor.value
-      ) {
-        type_x++;
-      }
-    }
-  }
-  var frac_x = type_x / (type_x + type_y);
-  var frac_y = type_y / (type_x + type_y);
-  if (
-    (cur === popYcolor.value && frac_y < threshold.value) ||
-    (cur === popXcolor.value && frac_x < threshold.value)
-  ) {
-    return true;
-  } else {
-    return false;
-  }
+  var neighbors = Neighbors(a, b);
+  var numN = neighbors.length;
+  var numS = neighbors.filter((a) => a == grid[a][b]).length;
+  return numS / numN > threshold;
 }
 
-function jump() {}
+function jump(a, b) {
+  var target = randomNum(0, empty.length);
+  target = empty.splice(target, 1)[0];
+  empty.push(grid[a][b]);
+  var cell = grid[a][b];
+  grid[a][b] = "o";
+  grid[target] = cell;
+}
 
-async function simulate() {
+async function sim() {
   if (!run) {
     return;
   }
-
-  for (var i = 0; i < dimension; i++) {
-    for (var j = 0; j < dimension; i++) {
+  console.log("here?");
+  let stop = true;
+  for (var i = 0; i < dimension.value; i++) {
+    for (var j = 0; j < dimension.value; i++) {
       if (grid[i][j] !== "o") {
         if (!getSatisfaction(i, j)) {
-          jump();
+          stop = false;
+          jump(i, j);
         }
       }
     }
+  }
+  console.log("are we getting here");
+  generations.innerHTML = `Generations: ${++gen}`;
+  if (!stop) {
+    createTable();
+    await new Promise((resolve) =>
+      setTimeout(() => {
+        resolve(); // do nothing after waiting 100 ms, just alert the calling thread
+      }, 100)
+    );
+    sim();
+  } else {
+    runstop.innerHTML = "Run";
+    run = false;
   }
 }
 
 //TODO: Add event listeners
 runstop.addEventListener("click", () => {
-  console.log("button works");
+  run = !run;
+  if (run) {
+    gen = 0;
+    runstop.innerHTML = "Stop!";
+    sim();
+  } else {
+    runstop.innerHTML = "Run";
+  }
 });
+
+createGrid();
