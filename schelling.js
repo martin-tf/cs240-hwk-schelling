@@ -16,10 +16,23 @@ var grid = [];
 var h = 0;
 var run = false;
 var gen = 0;
+var empty = [];
 
-function randomNum(min, max) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
+// function randomNum(min, max) {
+//   return Math.floor(Math.random() * (max - min + 1)) + min;
+// }
+
+var popYcolorVal = popYcolor.value;
+popYcolor.addEventListener("inpt", () => {
+  popYcolor = popYcolorVal;
+  createTable();
+});
+
+var popXcolorVal = popXcolor.value;
+popXcolor.addEventListener("input", () => {
+  popXcolor = popXcolorVal;
+  createTable();
+});
 
 function createGrid() {
   for (var i = 0; i < dimension.value; i++) {
@@ -30,6 +43,7 @@ function createGrid() {
 }
 
 function randomizeTable() {
+  empty = [];
   for (var i = 0; i < dimension.value; i++) {
     for (var j = 0; j < dimension.value; j++) {
       if (Math.random() < vacantRatio.value) {
@@ -42,81 +56,111 @@ function randomizeTable() {
     }
   }
   console.log(grid);
+  console.log(`Empty right after board creation: ${empty}`);
+  console.log(empty);
 }
 
 function createTable() {
-  empty = [];
-  var myTable = document.getElementById("board");
+  var board = document.getElementById("board");
   var table = document.createElement("table");
-  var tableBody = document.createElement("tbody");
-  table.appendChild(tableBody);
   for (var i = 0; i < dimension.value; i++) {
     var tr = document.createElement("tr");
-    tableBody.appendChild(tr);
+    table.appendChild(tr);
     for (var j = 0; j < dimension.value; j++) {
       var td = document.createElement("td");
       if (grid[i][j] == "o") {
         empty.push(grid[i][j]);
       } else if (grid[i][j] == "y") {
-        td.style.backgroundColor = popYcolor.value;
+        td.style.backgroundColor = popYcolorVal;
       } else {
-        td.style.backgroundColor = popXcolor.value;
+        td.style.backgroundColor = popXcolorVal;
       }
       tr.appendChild(td);
     }
+    table.appendChild(tr);
   }
-  myTable.appendChild(table);
-  console.log(myTable);
+  if (board.childNodes[1]) {
+    board.removeChild(board.lastChild);
+  }
+  board.appendChild(table);
 }
 
 function Neighbors(a, b) {
   var n = [];
-  n.push(grid[a - 1][b]); //top center
-  n.push(grid[a](b + 1)); //right center
-  n.push(grid[a + 1][b]); //bottom center
-  n.push(grid[a][b - 1]); //left center
-  n.push(grid[a - 1][b + 1]); //Upper right
-  n.push(grid[a + 1][b + 1]); //bottom right
-  n.push(grid[a + 1][b - 1]); //bottom left
-  n.push(grid[a - 1][b - 1]); //upper left
+  if (a > 0) {
+    n.push(grid[a - 1][b]); //top center
+    if (b > 0) {
+      n.push(grid[a - 1][b - 1]); //upper left
+    }
+    if (b < dimension - 1) {
+      n.push(grid[a - 1][b + 1]); //Upper right
+    }
+  }
+  if (a < dimension - 1) {
+    n.push(grid[a + 1][b]); //bottom center
+    if (b > 0) {
+      n.push(grid[a + 1][b - 1]); //bottom left
+    }
+    if (b < dimension - 1) {
+      n.push(grid[a + 1][b + 1]); //bottom right
+    }
+  }
+  if (b < dimension - 1) {
+    n.push(grid[a](b + 1)); //right center
+  }
+  if (b > 0) {
+    n.push(grid[a][b - 1]); //left center
+  }
   return n.filter((x) => x);
 }
 
 function getSatisfaction(a, b) {
   var neighbors = Neighbors(a, b);
   var numN = neighbors.length;
-  var numS = neighbors.filter((a) => a == grid[a][b]).length;
+  var numS = neighbors.filter((x) => x == grid[a][b]).length;
   return numS / numN > threshold;
 }
 
 function jump(a, b) {
-  var target = randomNum(0, empty.length);
+  var target = Math.floor(Math.random() * empty.length);
+  console.log(target);
   target = empty.splice(target, 1)[0];
-  empty.push(grid[a][b]);
+  console.log(target);
+  console.log(grid.indexOf(target));
+  let t = empty.findIndex(target);
+  console.log(t);
   var cell = grid[a][b];
   grid[a][b] = "o";
-  grid[target] = cell;
+  empty.push(grid[a][b]);
+  let destx = parseFloat(target % dimension.value);
+  let desty = parseFloat(Math.floor(target / dimension.value));
+  console.log(destx);
+  console.log(desty);
+  console.log(target);
+  console.log(cell);
+  grid[destx][desty] = cell;
 }
 
 async function sim() {
   if (!run) {
     return;
   }
-  console.log("here?");
   let stop = true;
   for (var i = 0; i < dimension.value; i++) {
-    for (var j = 0; j < dimension.value; i++) {
-      if (grid[i][j] !== "o") {
+    for (var j = 0; j < dimension.value; j++) {
+      if (grid[i][j] != "o") {
         if (!getSatisfaction(i, j)) {
+          //if the node is not satified jump to a new spot.
+          console.log("are we getting here");
           stop = false;
           jump(i, j);
+          console.log(grid);
         }
       }
     }
   }
-  console.log("are we getting here");
   generations.innerHTML = `Generations: ${++gen}`;
-  if (!stop) {
+  if (stop == false) {
     createTable();
     await new Promise((resolve) =>
       setTimeout(() => {
@@ -130,6 +174,8 @@ async function sim() {
   }
 }
 
+createGrid();
+
 //TODO: Add event listeners
 runstop.addEventListener("click", () => {
   run = !run;
@@ -142,4 +188,7 @@ runstop.addEventListener("click", () => {
   }
 });
 
-createGrid();
+randomize.addEventListener("click", () => {
+  randomizeTable();
+  createTable();
+});
